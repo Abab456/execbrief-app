@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings — ExecBrief</title>
+
+  <link rel="stylesheet" href="/styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+
+<body class="dashboard-body">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">ExecBrief</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="/dashboard" class="nav-link" data-icon="📊">Overview</a>
+      <a href="/upload" class="nav-link" data-icon="📤">Upload</a>
+      <a href="/settings" class="nav-link" data-icon="⚙️">Settings</a>
+      <a href="#" id="logout-btn" class="nav-link danger" data-icon="🚪">Logout</a>
+    </nav>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- TOP BAR -->
+    <header class="top-bar">
+      <div>
+        <h2>Settings</h2>
+        <div class="muted" style="font-weight:800; font-size:13px; margin-top:4px;">
+          Manage your account, company and plan.
+        </div>
+      </div>
+
+      <div class="user-profile">
+        👤 <span id="user-name">Loading...</span>
+      </div>
+    </header>
+
+    <!-- GRID -->
+    <section class="grid-3">
+
+      <!-- PROFILE -->
+      <div class="dashboard-card" style="grid-column: span 2;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+          <h3 style="margin:0;">Profile</h3>
+          <span class="tag" id="tier-tag">Free</span>
+        </div>
+
+        <div class="muted" style="font-weight:800; font-size:13px; margin-top:8px;">
+          Your name and company appear on your briefs.
+        </div>
+
+        <div id="msgBox" class="alert" style="display:none; margin-top:14px;"></div>
+
+        <form id="profileForm" style="margin-top:16px; display:grid; gap:12px;">
+          <div>
+            <label style="font-weight:900; font-size:13px; color:rgba(11,18,32,.72);">Name</label>
+            <input id="name" type="text" placeholder="Your name"
+              style="width:100%; margin-top:6px; padding:12px; border-radius:14px; border:1px solid rgba(11,18,32,.14);" />
+          </div>
+
+          <div>
+            <label style="font-weight:900; font-size:13px; color:rgba(11,18,32,.72);">Company</label>
+            <input id="company" type="text" placeholder="Company name"
+              style="width:100%; margin-top:6px; padding:12px; border-radius:14px; border:1px solid rgba(11,18,32,.14);" />
+          </div>
+
+          <div>
+            <label style="font-weight:900; font-size:13px; color:rgba(11,18,32,.72);">Email</label>
+            <input id="email" type="email" disabled
+              style="width:100%; margin-top:6px; padding:12px; border-radius:14px; border:1px solid rgba(11,18,32,.10); background:rgba(11,18,32,.04);" />
+          </div>
+
+          <button class="btn-primary" style="width: fit-content;" type="submit">
+            Save changes
+          </button>
+        </form>
+      </div>
+
+      <!-- PLAN -->
+      <div class="dashboard-card">
+        <h3 style="margin:0;">Plan</h3>
+
+        <div class="muted" style="font-weight:800; font-size:13px; margin-top:8px;">
+          Current tier
+        </div>
+
+        <div style="margin-top:14px; display:grid; gap:12px;">
+          <div class="metric-card" style="text-align:left;">
+            <div class="metric-label">Tier</div>
+            <div class="metric-value" id="tier-value" style="font-size:28px;">Free</div>
+            <div class="trend-stable" style="margin-top:8px;">Active</div>
+          </div>
+
+          <a href="/signup" class="nav-btn" style="text-align:center;">
+            Upgrade plan
+          </a>
+
+          <div class="muted" style="font-weight:800; font-size:12px;">
+            * Billing is demo for now (MVP).
+          </div>
+        </div>
+      </div>
+
+      <!-- INTEGRATIONS -->
+      <div class="dashboard-card" style="grid-column: span 3;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+          <h3 style="margin:0;">Integrations</h3>
+          <span class="tag">Connect your data</span>
+        </div>
+
+        <div class="muted" style="font-weight:800; font-size:13px; margin-top:8px;">
+          Connect ExecBrief to your tools to auto-generate daily executive briefs.
+        </div>
+
+        <div class="integration-grid" style="margin-top:14px;">
+
+          <div class="integration-card">
+            <div class="integration-top">
+              <div class="integration-icon">📊</div>
+              <div>
+                <div class="integration-title">Google Analytics 4</div>
+                <div class="integration-desc">Traffic, conversions, channels, landing pages.</div>
+              </div>
+            </div>
+            <div class="integration-bottom">
+              <span class="status-pill status-off" id="status-ga4">Not connected</span>
+              <button class="nav-btn" type="button" onclick="openIntegrationModal('GA4')">Connect</button>
+            </div>
+          </div>
+
+          <div class="integration-card">
+            <div class="integration-top">
+              <div class="integration-icon">❄️</div>
+              <div>
+                <div class="integration-title">Snowflake</div>
+                <div class="integration-desc">Enterprise warehouse integration (tables & views).</div>
+              </div>
+            </div>
+            <div class="integration-bottom">
+              <span class="status-pill status-off" id="status-snowflake">Not connected</span>
+              <button class="nav-btn" type="button" onclick="openIntegrationModal('Snowflake')">Connect</button>
+            </div>
+          </div>
+
+          <div class="integration-card">
+            <div class="integration-top">
+              <div class="integration-icon">📈</div>
+              <div>
+                <div class="integration-title">Looker</div>
+                <div class="integration-desc">Pull insights from dashboards & saved queries.</div>
+              </div>
+            </div>
+            <div class="integration-bottom">
+              <span class="status-pill status-off" id="status-looker">Not connected</span>
+              <button class="nav-btn" type="button" onclick="openIntegrationModal('Looker')">Connect</button>
+            </div>
+          </div>
+
+          <div class="integration-card">
+            <div class="integration-top">
+              <div class="integration-icon">🐘</div>
+              <div>
+                <div class="integration-title">PostgreSQL</div>
+                <div class="integration-desc">Connect to your transactional database.</div>
+              </div>
+            </div>
+            <div class="integration-bottom">
+              <span class="status-pill status-off" id="status-postgres">Not connected</span>
+              <button class="nav-btn" type="button" onclick="openIntegrationModal('Postgres')">Connect</button>
+            </div>
+          </div>
+
+          <div class="integration-card">
+            <div class="integration-top">
+              <div class="integration-icon">🧠</div>
+              <div>
+                <div class="integration-title">BigQuery</div>
+                <div class="integration-desc">Sync analytics tables & marketing datasets.</div>
+              </div>
+            </div>
+            <div class="integration-bottom">
+              <span class="status-pill status-off" id="status-bigquery">Not connected</span>
+              <button class="nav-btn" type="button" onclick="openIntegrationModal('BigQuery')">Connect</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- TEAM INVITE -->
+      <div class="dashboard-card" style="grid-column: span 3;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+          <h3 style="margin:0;">Team Invite</h3>
+          <span class="tag">Share access</span>
+        </div>
+
+        <div class="muted" style="font-weight:800; font-size:13px; margin-top:8px;">
+          Invite teammates to view briefs and decision signals.
+        </div>
+
+        <div style="margin-top:14px; display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+          <button id="inviteBtn" class="nav-btn" type="button">Generate invite link</button>
+          <input id="inviteLink" type="text" readonly placeholder="Invite link will appear here..."
+            style="flex:1; min-width:260px; padding:12px; border-radius:14px;
+                   border:1px solid rgba(11,18,32,.12); background:rgba(255,255,255,.85);" />
+          <button id="copyBtn" class="btn-text-white" type="button">Copy</button>
+        </div>
+
+        <div class="muted" id="inviteStatus" style="font-weight:900; font-size:12px; margin-top:10px;"></div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- MODAL -->
+  <div id="integrationModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title" id="modalTitle">Connect Integration</div>
+          <div class="muted" id="modalSubtitle" style="font-weight:800; font-size:13px; margin-top:4px;">
+            Securely connect your data source.
+          </div>
+        </div>
+        <button class="btn-text-white" onclick="closeIntegrationModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="modal-steps">
+          <div class="step active" id="step1">1</div>
+          <div class="step" id="step2">2</div>
+          <div class="step" id="step3">3</div>
+        </div>
+
+        <div class="modal-panel" id="modalPanel"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============== Helpers ==============
+    function showMsg(type, text) {
+      const box = document.getElementById('msgBox');
+      box.style.display = "block";
+      box.className = "alert " + (type === "error" ? "error" : "success");
+      box.innerText = text;
+    }
+
+    // ============== Init page ==============
+    async function initSettings() {
+      const res = await fetch('/api/profile', { credentials: "include" });
+      if (res.status === 401) return window.location.href = '/login';
+
+      const data = await res.json();
+
+      document.getElementById('user-name').innerText = data.name || "User";
+      document.getElementById('name').value = data.name || "";
+      document.getElementById('company').value = data.company || "";
+      document.getElementById('email').value = data.email || "";
+
+      const tier = data.tier || "Free";
+      document.getElementById('tier-tag').innerText = tier;
+      document.getElementById('tier-value').innerText = tier;
+    }
+
+    // ============== Profile update ==============
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById('name').value.trim();
+      const company = document.getElementById('company').value.trim();
+
+      try {
+        const res = await fetch('/api/profile/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: "include",
+          body: JSON.stringify({ name, company })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Update failed");
+
+        showMsg("success", "Profile updated ✅");
+
+      } catch (err) {
+        showMsg("error", err.message || "Update failed");
+      }
+    });
+
+    // ============== Invite link ==============
+    document.getElementById('inviteBtn').addEventListener('click', async () => {
+      const status = document.getElementById('inviteStatus');
+      status.innerText = "Generating link...";
+
+      try {
+        const res = await fetch('/api/team/invite', {
+          method: 'POST',
+          credentials: "include"
+        });
+
+        const data = await res.json();
+        document.getElementById('inviteLink').value = data.link;
+        status.innerText = "Invite link ready ✅";
+
+      } catch (err) {
+        status.innerText = "Error generating invite link ❌";
+      }
+    });
+
+    document.getElementById('copyBtn').addEventListener('click', async () => {
+      const link = document.getElementById('inviteLink').value;
+      const status = document.getElementById('inviteStatus');
+      if (!link) return (status.innerText = "Generate a link first.");
+
+      await navigator.clipboard.writeText(link);
+      status.innerText = "Copied ✅";
+    });
+
+    // Logout
+    document.getElementById('logout-btn')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await fetch('/api/logout', { method: 'POST', credentials: "include" });
+      window.location.href = '/login';
+    });
+
+    // Highlight active link
+    const path = window.location.pathname;
+    document.querySelectorAll(".sidebar-nav .nav-link").forEach(a => {
+      if (a.getAttribute("href") === path) a.classList.add("active");
+    });
+
+    // ==============================
+    // Integrations Modal JS
+    // ==============================
+    let currentIntegration = null;
+    let currentStep = 1;
+
+    function openIntegrationModal(name) {
+      currentIntegration = name;
+      currentStep = 1;
+
+      document.getElementById("modalTitle").innerText = `Connect ${name}`;
+      document.getElementById("modalSubtitle").innerText =
+        `Securely connect ${name} to generate automated daily briefs.`;
+
+      document.getElementById("integrationModal").style.display = "flex";
+      renderModalStep();
+    }
+
+    function closeIntegrationModal() {
+      document.getElementById("integrationModal").style.display = "none";
+    }
+
+    function modalNext() {
+      if (currentStep < 3) currentStep++;
+      renderModalStep();
+    }
+
+    function modalBack() {
+      if (currentStep > 1) currentStep--;
+      renderModalStep();
+    }
+
+    function renderModalStep() {
+      document.getElementById("step1").classList.toggle("active", currentStep === 1);
+      document.getElementById("step2").classList.toggle("active", currentStep === 2);
+      document.getElementById("step3").classList.toggle("active", currentStep === 3);
+
+      const panel = document.getElementById("modalPanel");
+
+      if (currentStep === 1) {
+        panel.innerHTML = `
+          <div class="modal-section-title">Step 1 — Credentials</div>
+          <div class="muted" style="font-weight:800; font-size:13px; margin-top:6px;">
+            Enter connection details (MVP demo UI).
+          </div>
+
+          <div style="margin-top:14px; display:grid; gap:12px;">
+            <input class="modal-input" placeholder="Client ID / Account / Host" />
+            <input class="modal-input" placeholder="Secret / Password / Token" />
+          </div>
+
+          <div class="modal-actions">
+            <button class="nav-btn" type="button" onclick="modalNext()">Next</button>
+          </div>
+        `;
+        return;
+      }
+
+      if (currentStep === 2) {
+        panel.innerHTML = `
+          <div class="modal-section-title">Step 2 — Test Connection</div>
+          <div class="muted" style="font-weight:800; font-size:13px; margin-top:6px;">
+            In the real version: we validate credentials + permissions.
+          </div>
+
+          <div class="metric-card" style="margin-top:14px; text-align:left;">
+            <div class="metric-label">Connection status</div>
+            <div class="metric-value" style="font-size:20px;">✅ Ready (Demo)</div>
+            <div class="muted" style="font-weight:900; margin-top:6px;">
+              No backend call yet.
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button class="btn-text-white" type="button" onclick="modalBack()">Back</button>
+            <button class="nav-btn" type="button" onclick="modalNext()">Next</button>
+          </div>
+        `;
+        return;
+      }
+
+      if (currentStep === 3) {
+        panel.innerHTML = `
+          <div class="modal-section-title">Step 3 — Finish</div>
+          <div class="muted" style="font-weight:800; font-size:13px; margin-top:6px;">
+            Save this integration and schedule daily sync.
+          </div>
+
+          <div style="margin-top:14px; display:grid; gap:12px;">
+            <div class="metric-card" style="text-align:left;">
+              <div class="metric-label">Sync frequency</div>
+              <div class="metric-value" style="font-size:18px;">Daily (06:00)</div>
+              <div class="muted" style="font-weight:900; margin-top:6px;">
+                Configurable later.
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button class="btn-text-white" type="button" onclick="modalBack()">Back</button>
+            <button class="nav-btn" type="button" onclick="markConnected()">Finish</button>
+          </div>
+        `;
+      }
+    }
+
+    function markConnected() {
+      const idMap = {
+        "GA4": "status-ga4",
+        "Snowflake": "status-snowflake",
+        "Looker": "status-looker",
+        "Postgres": "status-postgres",
+        "BigQuery": "status-bigquery"
+      };
+
+      const el = document.getElementById(idMap[currentIntegration]);
+      if (el) {
+        el.innerText = "Connected";
+        el.classList.remove("status-off");
+        el.classList.add("status-on");
+      }
+
+      closeIntegrationModal();
+    }
+
+    initSettings();
+  </script>
+
+  <!-- Responsive fix -->
+  <style>
+    @media (max-width: 900px) {
+      .grid-3 { grid-template-columns: 1fr !important; }
+    }
+  </style>
+
+</body>
+</html>

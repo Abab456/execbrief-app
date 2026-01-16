@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reset Password — ExecBrief</title>
+
+  <link rel="stylesheet" href="/styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+
+<body class="auth-page">
+
+  <div class="auth-card">
+    <div class="auth-title">Reset your password</div>
+    <div class="auth-subtitle">Enter your email and we’ll send you a reset message.</div>
+
+    <!-- message box -->
+    <div id="msgBox" class="alert" style="display:none; margin-bottom:12px;"></div>
+
+    <form id="forgotForm">
+      <label for="email">Work Email</label>
+      <input id="email" type="email" name="email" placeholder="ceo@company.com" required />
+
+      <button type="submit" class="btn-primary">Send reset link</button>
+    </form>
+
+    <div class="auth-links" style="justify-content:space-between;">
+      <a href="/login.html">← Back to login</a>
+      <a href="/signup.html">Create account</a>
+    </div>
+
+    <div style="margin-top:18px; text-align:center;">
+      <a href="/index.html" class="muted" style="font-weight:900; text-decoration:none;">← Back to Home</a>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('forgotForm');
+    const msgBox = document.getElementById('msgBox');
+
+    function showMsg(type, text){
+      msgBox.style.display = "block";
+      msgBox.className = "alert " + (type === "error" ? "error" : "success");
+      msgBox.innerText = text;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msgBox.style.display = "none";
+      msgBox.innerText = "";
+
+      const email = document.getElementById('email').value.trim();
+
+      try {
+        const res = await fetch('/api/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          showMsg("error", data.error || "Could not send reset email.");
+          return;
+        }
+
+        showMsg("success", data.message || "If that email exists, a reset link has been sent ✅");
+
+        // optional: auto return to login after 2s
+        setTimeout(() => {
+          window.location.href = "/login.html";
+        }, 2000);
+
+      } catch (err) {
+        showMsg("error", "Network error. Please try again.");
+      }
+    });
+  </script>
+
+</body>
+</html>

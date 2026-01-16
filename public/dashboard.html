@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ExecBrief Dashboard</title>
+
+  <!-- Your main CSS -->
+  <link rel="stylesheet" href="/styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+
+<body class="dashboard-body">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">ExecBrief</div>
+    </div>
+
+    <!-- Add data-icon for responsive sidebar collapse -->
+<nav class="sidebar-nav">
+  <a href="/dashboard" class="nav-link active" data-icon="📊">Overview</a>
+  <a href="/upload" class="nav-link" data-icon="📤">Upload</a>
+  <a href="/settings" class="nav-link" data-icon="⚙️">Settings</a>
+  <a href="#" id="logout-btn" class="nav-link danger" data-icon="🚪">Logout</a>
+</nav>
+
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+
+    <!-- TOP BAR -->
+    <header class="top-bar">
+     <div>
+  <h2 id="company-name">My Company</h2>
+  <div class="muted" style="font-weight:850; font-size:13px; margin-top:4px;">
+    Executive overview • updated daily
+  </div>
+</div>
+
+      <div class="user-profile" style="display:flex; align-items:center; gap:8px;">
+  👤 <span id="user-name">Loading...</span>
+</div>
+
+    </header>
+
+    <!-- EXECUTIVE SUMMARY -->
+    <section class="dashboard-section">
+      <div class="section-header" style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <h3 style="margin:0;">Executive Summary</h3>
+
+        <!-- date badge -->
+        <span class="date-badge"
+          style="padding: 7px 12px; border-radius: 999px; font-weight: 900; font-size: 12px;
+                 border: 1px solid rgba(11,18,32,.10); background: rgba(255,255,255,.75);">
+          Today
+        </span>
+      </div>
+
+      <div class="dashboard-card summary-card">
+        <p id="summary-text" class="summary-text">Loading insights...</p>
+      </div>
+    </section>
+
+    <!-- SIGNALS -->
+    <section class="dashboard-section">
+      <div style="display:flex; align-items:end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <h3 style="margin:0;">Key Decision Signals</h3>
+
+        <div class="muted" style="font-weight:800; font-size: 12px;">
+          KPI signals for leadership
+        </div>
+      </div>
+
+      <div id="signals-container" class="grid-3" style="margin-top:12px;">
+        <!-- JS renders metric cards here -->
+      </div>
+    </section>
+
+    <!-- ACTIONS -->
+    <section class="dashboard-section">
+      <div style="display:flex; align-items:end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <h3 style="margin:0;">Recommended Actions</h3>
+
+        <div class="muted" style="font-weight:800; font-size: 12px;">
+          Prioritized checklist
+        </div>
+      </div>
+
+      <div id="actions-container" class="actions-list" style="margin-top:12px;">
+        <!-- JS renders actions list here -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- scripts -->
+  <script src="/dashboard.js"></script>
+
+  <script>
+    // Logout logic
+    document.getElementById('logout-btn').addEventListener('click', async (e) => {
+      e.preventDefault();
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/login.html';
+    });
+  </script>
+
+	<script>
+  document.getElementById('logout-btn')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    await fetch('/api/logout', { method: 'POST', credentials: "include" });
+    window.location.href = '/login';
+  });
+</script>
+	
+<script>
+  const path = window.location.pathname;
+  document.querySelectorAll(".sidebar-nav .nav-link").forEach(a => {
+    if (a.getAttribute("href") === path) a.classList.add("active");
+  });
+</script>
+
+
+</body>
+</html>
