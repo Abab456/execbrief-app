@@ -1,0 +1,36 @@
+[
+  {
+    "id": 101,
+    "name": "Acme Corp",
+    "summary": "Overall performance is stable. However, Customer Acquisition Cost (CAC) on Meta has risen by 15% due to recent algorithm changes, putting Q3 efficiency targets at risk. Organic growth remains strong.",
+    "signals": [
+      { "label": "Churn Rate", "value": "2.1%", "trend": "good", "direction": "↓", "context": "Lowest in 12 mo" },
+      { "label": "Burn Rate", "value": "$45k", "trend": "stable", "direction": "→", "context": "On track" },
+      { "label": "CAC (Meta)", "value": "$145", "trend": "bad", "direction": "↑", "context": "Target: <$120" }
+    ],
+    "actions": [
+      { 
+        "id": "a1",
+        "title": "Cut Meta Spend by 15%",
+        "impact": "High",
+        "confidence": 92,
+        "reason": "CPA now exceeds LTV targets in 2 cohorts.",
+        "consequence": "If ignored: $22k wasted spend in Q3."
+      },
+      { 
+        "id": "a2",
+        "title": "Review Q3 Hiring Plan",
+        "impact": "Medium",
+        "confidence": 75,
+        "reason": "Engineering velocity is lagging.",
+        "consequence": "Product launch delayed by 2 weeks."
+      }
+    ],
+    "scenarios": [
+      {
+        "title": "Hire 2 Sales Reps in July",
+        "result": "Burn +$12k/mo, Revenue +$40k/mo (lag 3mo)"
+      }
+    ]
+  }
+]
