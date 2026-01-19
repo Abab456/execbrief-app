@@ -6,29 +6,15 @@ const bodyParser = require("body-parser");
 const path = require("path");
 const bcrypt = require("bcryptjs");
 const multer = require("multer");
-const { buildExploratoryPrompt } = require("./src/core/buildExploratoryPrompt");
 /* ===========================
    DATABASE
 =========================== */
 const {
   createUser,
   findUserByEmail,
-  getTeamMembers
+  getTeamMembers,
+  initDB
 } = require("./database");
-
-/* ===========================
-   EXECBRIEF CORE
-=========================== */
-const { parseUploadFiles } = require("./src/adapters/uploadAdapter");
-const { normalize } = require("./src/core/normalize");
-const { buildSignals } = require("./src/core/signalLibrary");
-
-const { buildExecBriefPrompt } = require("./src/core/buildExecBriefPrompt");
-const { buildExplorePrompt } = require("./src/core/prompts/explore.prompt");
-
-const { auditExplore } = require("./src/core/audit/auditExplore");
-
-const { generateBriefFromPrompt } = require("./src/services/aiService");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -52,7 +38,7 @@ app.use(
 );
 
 // Static files
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "Public")));
 
 /* ===========================
    HELPERS
@@ -63,7 +49,7 @@ const requireAuth = (req, res, next) => {
 };
 
 const sendPublic = (res, file) =>
-  res.sendFile(path.join(__dirname, "public", file));
+  res.sendFile(path.join(__dirname, "Public", file));
 
 /* ===========================
    FILE UPLOAD (MVP – MEMORY)
@@ -154,86 +140,10 @@ app.post(
   upload.array("files", 10),
   async (req, res) => {
     try {
-      const mode = req.body.mode || "exec";
-      const context = (req.body.context || "").trim();
-
-      // MVP raw data
-      const raw = {
-        source: "upload",
-        confidence: "medium",
-        assumptions: ["MVP demo data"],
-        current: { revenue: 420000, cac: 145, churn_rate: 0.021 },
-        previous: { revenue: 445000, cac: 112, churn_rate: 0.020 }
-      };
-
-      const normalized = normalize(raw);
-      const signalsPack = buildSignals(normalized);
-
-      const prompt = buildExecBriefPrompt({
-        mode,
-        signalsPack,
-        context
+      return res.status(501).json({
+        success: false,
+        error: "Upload processing is not configured on this deployment."
       });
-
-      const brief = await generateBriefFromPrompt(prompt);
-
-      return res.json({ success: true, brief });
-
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: "Upload failed" });
-    }
-  }
-);
-
-      }
-
-      const context = (req.body.context || "").trim();
-      const mode = req.body.mode || "exec"; // exec | explore
-
-      // 1️⃣ Adapter
-      const raw = parseUploadFiles(req.files);
-
-      // 2️⃣ Normalize
-      const normalized = normalize(raw);
-
-      // 3️⃣ Signals
-      const signalsPack = buildSignals(normalized);
-
-      let prompt;
-      let brief;
-
-      // =========================
-      // MODE SWITCH
-      // =========================
-      if (mode === "explore") {
-        prompt = buildExplorePrompt({ signalsPack, context });
-        brief = await generateBriefFromPrompt(prompt);
-
-        const audit = auditExplore({ briefJson: brief });
-        if (!audit.ok) {
-          return res.status(422).json({
-            success: false,
-            error: "Audit failed",
-            details: audit.errors
-          });
-        }
-
-        return res.json({ success: true, mode: "explore", brief });
-      }
-
-      // =========================
-      // DEFAULT: EXECUTIVE BRIEF
-      // =========================
-      prompt = buildExecBriefPrompt({ signalsPack, context });
-      brief = await generateBriefFromPrompt(prompt);
-
-      return res.json({
-        success: true,
-        mode: "exec",
-        brief
-      });
-
     } catch (err) {
       console.error("❌ Upload error:", err);
       return res.status(500).json({
@@ -281,6 +191,8 @@ app.post("/api/team/invite", requireAuth, (req, res) => {
 /* ===========================
    START SERVER
 =========================== */
+
+initDB();
 
 app.listen(PORT, () => {
   console.log(`✅ ExecBrief running on http://localhost:${PORT}`);
