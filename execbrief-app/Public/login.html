@@ -59,11 +59,21 @@
           body: JSON.stringify({ email, password })
         });
 
-        const data = await res.json();
+        const bodyText = await res.text();
+        let data = {};
+        try {
+          data = bodyText ? JSON.parse(bodyText) : {};
+        } catch (parseError) {
+          data = {};
+        }
 
         if (!res.ok || !data.success) {
           errorBox.style.display = "block";
-          errorBox.innerText = data.message || data.error || "Login failed";
+          errorBox.innerText =
+            data.message ||
+            data.error ||
+            bodyText ||
+            "Login failed";
           return;
         }
 
@@ -71,7 +81,8 @@
 
       } catch (err) {
         errorBox.style.display = "block";
-        errorBox.innerText = "Network error. Please try again.";
+        errorBox.innerText =
+          "Unable to reach the login service. Please try again.";
       }
     });
   </script>

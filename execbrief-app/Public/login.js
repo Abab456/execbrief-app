@@ -18,16 +18,22 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             body: JSON.stringify({ email: emailInput, password: passwordInput })
         });
 
-        const data = await response.json();
+        const bodyText = await response.text();
+        let data = {};
+        try {
+            data = bodyText ? JSON.parse(bodyText) : {};
+        } catch (parseError) {
+            data = {};
+        }
 
         if (data.success) {
             window.location.href = data.redirect;
         } else {
-            errorMsg.innerText = data.message || 'Login failed';
+            errorMsg.innerText = data.message || data.error || bodyText || 'Login failed';
             errorMsg.style.display = 'block';
         }
     } catch (err) {
-        errorMsg.innerText = 'Connection error. Please try again.';
+        errorMsg.innerText = 'Unable to reach the login service. Please try again.';
         errorMsg.style.display = 'block';
     }
 });
