@@ -82,8 +82,20 @@ app.get("/upload", (req, res) => {
   return res.redirect("/login");
 });
 
+app.get("/settings", (req, res) => {
+  if (req.session?.user) return sendPublic(res, "settings.html");
+  return res.redirect("/login");
+});
+
+app.get("/report/:reportId", (req, res) => {
+  if (req.session?.user) return sendPublic(res, "report.html");
+  return res.redirect("/login");
+});
+
+app.get("/report", (req, res) => res.redirect("/dashboard"));
+
 // Redirect legacy .html
-["login", "signup", "forgot", "dashboard", "upload"].forEach(route => {
+["login", "signup", "forgot", "dashboard", "upload", "settings", "report"].forEach(route => {
   app.get(`/${route}.html`, (req, res) => res.redirect(`/${route}`));
 });
 
