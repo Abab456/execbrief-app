@@ -31,33 +31,6 @@ const initDB = () => {
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`);
 
-    db.run(
-      `ALTER TABLE metrics ADD COLUMN state TEXT DEFAULT 'draft'`,
-      (err) => {
-        if (err && !err.message.includes("duplicate column name")) {
-          console.error("Failed to add state column:", err.message);
-        }
-      }
-    );
-
-    db.run(
-      `ALTER TABLE metrics ADD COLUMN reviewed_at DATETIME`,
-      (err) => {
-        if (err && !err.message.includes("duplicate column name")) {
-          console.error("Failed to add reviewed_at column:", err.message);
-        }
-      }
-    );
-
-    db.run(
-      `ALTER TABLE metrics ADD COLUMN finalized_at DATETIME`,
-      (err) => {
-        if (err && !err.message.includes("duplicate column name")) {
-          console.error("Failed to add finalized_at column:", err.message);
-        }
-      }
-    );
-
     console.log("Database initialized.");
   });
 };
