@@ -13,6 +13,7 @@ const {
   createUser,
   findUserByEmail,
   getTeamMembers,
+  db,
   initDB
 } = require("./database");
 
@@ -50,6 +51,20 @@ const requireAuth = (req, res, next) => {
 
 const sendPublic = (res, file) =>
   res.sendFile(path.join(__dirname, "Public", file));
+
+const getMetricById = (id) =>
+  new Promise((resolve, reject) => {
+    db.get(
+      `SELECT id, user_id, data_json, state, reviewed_at, finalized_at, updated_at
+       FROM metrics
+       WHERE id = ?`,
+      [id],
+      (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      }
+    );
+  });
 
 /* ===========================
    FILE UPLOAD (MVP – MEMORY)
@@ -186,6 +201,175 @@ app.post("/api/team/invite", requireAuth, (req, res) => {
     req.session.user.company
   )}`;
   res.json({ link });
+});
+
+/* ===========================
+   REPORTS
+=========================== */
+
+app.get("/report/:id", requireAuth, async (req, res) => {
+  try {
+    const metric = await getMetricById(req.params.id);
+    if (!metric) return res.status(404).send("Report not found");
+
+    return res.json({
+      id: metric.id,
+      user_id: metric.user_id,
+      data_json: metric.data_json,
+      state: metric.state,
+      reviewed_at: metric.reviewed_at,
+      finalized_at: metric.finalized_at,
+      updated_at: metric.updated_at
+    });
+  } catch (err) {
+    console.error("Failed to load report:", err);
+    return res.status(500).send("Failed to load report");
+  }
+});
+
+app.post("/report/:id/update", requireAuth, async (req, res) => {
+  try {
+    const { data_json } = req.body;
+    if (!data_json) return res.status(400).send("Missing report data");
+
+    const metric = await getMetricById(req.params.id);
+    if (!metric) return res.status(404).send("Report not found");
+
+    if (metric.state === "final") {
+      return res.status(403).send("Finalized reports are read-only");
+    }
+
+    db.run(
+      `UPDATE metrics SET data_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [data_json, req.params.id],
+      (err) => {
+        if (err) {
+          console.error("Failed to update report:", err);
+          return res.status(500).send("Failed to update report");
+        }
+        return res.json({ success: true });
+      }
+    );
+  } catch (err) {
+    console.error("Failed to update report:", err);
+    return res.status(500).send("Failed to update report");
+  }
+});
+
+app.post("/report/:id/metadata", requireAuth, async (req, res) => {
+  try {
+    const { metadata } = req.body;
+    if (!metadata) return res.status(400).send("Missing metadata");
+
+    const metric = await getMetricById(req.params.id);
+    if (!metric) return res.status(404).send("Report not found");
+
+    if (metric.state === "final") {
+      return res.status(403).send("Finalized reports are read-only");
+    }
+
+    let parsed = {};
+    if (metric.data_json) {
+      try {
+        parsed = JSON.parse(metric.data_json);
+      } catch (err) {
+        parsed = {};
+      }
+    }
+
+    const updated = {
+      ...parsed,
+      metadata: {
+        ...(parsed.metadata || {}),
+        ...metadata
+      }
+    };
+
+    db.run(
+      `UPDATE metrics SET data_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [JSON.stringify(updated), req.params.id],
+      (err) => {
+        if (err) {
+          console.error("Failed to update metadata:", err);
+          return res.status(500).send("Failed to update metadata");
+        }
+        return res.json({ success: true });
+      }
+    );
+  } catch (err) {
+    console.error("Failed to update metadata:", err);
+    return res.status(500).send("Failed to update metadata");
+  }
+});
+
+app.post("/report/:id/regenerate", requireAuth, async (req, res) => {
+  try {
+    const metric = await getMetricById(req.params.id);
+    if (!metric) return res.status(404).send("Report not found");
+
+    if (metric.state !== "draft") {
+      return res.status(403).send("AI regeneration allowed only in draft state");
+    }
+
+    return res.status(501).send(
+      "AI regeneration is not configured on this deployment."
+    );
+  } catch (err) {
+    console.error("Failed to regenerate report:", err);
+    return res.status(500).send("Failed to regenerate report");
+  }
+});
+
+app.post("/report/:id/review", requireAuth, async (req, res) => {
+  try {
+    const metric = await getMetricById(req.params.id);
+    if (!metric) return res.status(404).send("Report not found");
+
+    if (metric.state !== "draft") {
+      return res.status(403).send("Only draft reports can be reviewed");
+    }
+
+    db.run(
+      `UPDATE metrics SET state = 'reviewed', reviewed_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [req.params.id],
+      (err) => {
+        if (err) {
+          console.error("Failed to review report:", err);
+          return res.status(500).send("Failed to review report");
+        }
+        return res.redirect(`/report/${req.params.id}`);
+      }
+    );
+  } catch (err) {
+    console.error("Failed to review report:", err);
+    return res.status(500).send("Failed to review report");
+  }
+});
+
+app.post("/report/:id/finalize", requireAuth, async (req, res) => {
+  try {
+    const metric = await getMetricById(req.params.id);
+    if (!metric) return res.status(404).send("Report not found");
+
+    if (metric.state !== "reviewed") {
+      return res.status(403).send("Only reviewed reports can be finalized");
+    }
+
+    db.run(
+      `UPDATE metrics SET state = 'final', finalized_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [req.params.id],
+      (err) => {
+        if (err) {
+          console.error("Failed to finalize report:", err);
+          return res.status(500).send("Failed to finalize report");
+        }
+        return res.redirect(`/report/${req.params.id}`);
+      }
+    );
+  } catch (err) {
+    console.error("Failed to finalize report:", err);
+    return res.status(500).send("Failed to finalize report");
+  }
 });
 
 /* ===========================
