@@ -6,6 +6,7 @@ const bodyParser = require("body-parser");
 const path = require("path");
 const bcrypt = require("bcryptjs");
 const multer = require("multer");
+const fs = require("fs");
 /* ===========================
    DATABASE
 =========================== */
@@ -51,6 +52,61 @@ const requireAuth = (req, res, next) => {
 
 const sendPublic = (res, file) =>
   res.sendFile(path.join(__dirname, "Public", file));
+
+const escapeHtml = (value = "") =>
+  String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+
+const renderReportPage = (metric) => {
+  const template = fs.readFileSync(
+    path.join(__dirname, "Public", "report.html"),
+    "utf8"
+  );
+  const state = (metric.state || "draft").toLowerCase();
+  const isDraft = state === "draft";
+  const isReviewed = state === "reviewed";
+  const isFinal = state === "final";
+
+  const trustMessage = isFinal
+    ? "This report is finalized and read-only."
+    : isReviewed
+    ? "This report has been reviewed and can be finalized."
+    : "This report is AI-generated and has not been reviewed.";
+
+  const saveButton = isFinal
+    ? ""
+    : `<button type="submit" class="btn-primary">Save</button>`;
+  const reviewButton = isDraft
+    ? `<form method="POST" action="/report/${metric.id}/review">
+        <button type="submit" class="nav-btn">Mark as Reviewed</button>
+      </form>`
+    : "";
+  const finalizeButton = isReviewed
+    ? `<form method="POST" action="/report/${metric.id}/finalize">
+        <button type="submit" class="nav-btn">Finalize Report</button>
+      </form>`
+    : "";
+  const regenerateButton = isDraft
+    ? `<form method="POST" action="/report/${metric.id}/regenerate">
+        <button type="submit" class="nav-btn">Regenerate AI</button>
+      </form>`
+    : "";
+
+  return template
+    .replaceAll("{{STATE}}", state.toUpperCase())
+    .replaceAll("{{TRUST_MESSAGE}}", trustMessage)
+    .replaceAll("{{REPORT_ID}}", escapeHtml(metric.id))
+    .replaceAll("{{REPORT_CONTENT}}", escapeHtml(metric.data_json || ""))
+    .replaceAll("{{READONLY_ATTR}}", isFinal ? "readonly" : "")
+    .replaceAll("{{SAVE_BUTTON}}", saveButton)
+    .replaceAll("{{REVIEW_BUTTON}}", reviewButton)
+    .replaceAll("{{FINALIZE_BUTTON}}", finalizeButton)
+    .replaceAll("{{REGENERATE_BUTTON}}", regenerateButton);
+};
 
 const getMetricById = (id) =>
   new Promise((resolve, reject) => {
@@ -212,15 +268,19 @@ app.get("/report/:id", requireAuth, async (req, res) => {
     const metric = await getMetricById(req.params.id);
     if (!metric) return res.status(404).send("Report not found");
 
-    return res.json({
-      id: metric.id,
-      user_id: metric.user_id,
-      data_json: metric.data_json,
-      state: metric.state,
-      reviewed_at: metric.reviewed_at,
-      finalized_at: metric.finalized_at,
-      updated_at: metric.updated_at
-    });
+    if (req.headers.accept && req.headers.accept.includes("application/json")) {
+      return res.json({
+        id: metric.id,
+        user_id: metric.user_id,
+        data_json: metric.data_json,
+        state: metric.state,
+        reviewed_at: metric.reviewed_at,
+        finalized_at: metric.finalized_at,
+        updated_at: metric.updated_at
+      });
+    }
+
+    return res.send(renderReportPage(metric));
   } catch (err) {
     console.error("Failed to load report:", err);
     return res.status(500).send("Failed to load report");
