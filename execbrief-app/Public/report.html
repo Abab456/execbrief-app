@@ -17,10 +17,10 @@
     </div>
 
     <nav class="sidebar-nav">
-      <a href="/dashboard" class="nav-link">📊 Overview</a>
-      <a href="/upload" class="nav-link">🧠 Decision Brief</a>
-      <a href="/settings" class="nav-link">⚙️ Settings</a>
-      <a href="#" id="logout-btn" class="nav-link danger">🚪 Logout</a>
+      <a href="/dashboard" class="nav-link" data-icon="📊">Overview</a>
+      <a href="/upload" class="nav-link" data-icon="🧠">Decision Brief</a>
+      <a href="/settings" class="nav-link" data-icon="⚙️">Settings</a>
+      <a href="#" id="logout-btn" class="nav-link danger" data-icon="🚪">Logout</a>
     </nav>
   </aside>
 
@@ -30,7 +30,7 @@
         <h2>Decision Brief</h2>
         <div class="muted">Report details</div>
       </div>
-      <div class="user-profile">👤 <span id="user-name">Account</span></div>
+      <div class="user-profile">👤 <span id="user-name">Loading...</span></div>
     </header>
 
     <section class="dashboard-section">
@@ -63,6 +63,30 @@
       </div>
     </section>
   </main>
+
+  <script>
+    async function loadUser() {
+      const response = await fetch("/api/profile", { credentials: "include" });
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      const data = await response.json();
+      document.getElementById("user-name").innerText = data.name || "User";
+    }
+    loadUser();
+
+    document.getElementById("logout-btn")?.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await fetch("/api/logout", { method: "POST", credentials: "include" });
+      window.location.href = "/login";
+    });
+
+    const path = window.location.pathname;
+    document.querySelectorAll(".sidebar-nav .nav-link").forEach(link => {
+      if (link.getAttribute("href") === path) link.classList.add("active");
+    });
+  </script>
 
 </body>
 </html>
