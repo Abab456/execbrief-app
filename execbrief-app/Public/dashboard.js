@@ -191,3 +191,41 @@ async function loadActions() {
     `;
   }
 }
+
+async function loadMyReports() {
+  const box = document.getElementById("my-reports");
+  if (!box) return;
+
+  try {
+    const res = await fetch("/api/reports");
+    if (!res.ok) throw new Error("Failed to fetch reports");
+    const data = await res.json();
+
+    const reports = data.reports || [];
+    if (reports.length === 0) {
+      box.innerHTML = `<div class="muted">No reports yet. Create one from “Decision Brief”.</div>`;
+      return;
+    }
+
+    box.innerHTML = reports
+      .map(r => {
+        const state = (r.state || "draft").toUpperCase();
+        const updated = r.updated_at ? new Date(r.updated_at).toLocaleString() : "";
+        return `
+          <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(0,0,0,0.06);">
+            <div>
+              <a href="/report/${r.id}" style="font-weight:700; text-decoration:none;">Report #${r.id}</a>
+              <div class="muted" style="margin-top:4px;">State: ${state}</div>
+            </div>
+            <div class="muted" style="text-align:right;">${updated}</div>
+          </div>
+        `;
+      })
+      .join("");
+  } catch (e) {
+    console.error(e);
+    box.innerHTML = `<div class="muted">Could not load reports.</div>`;
+  }
+}
+
+loadMyReports();

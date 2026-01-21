@@ -10,6 +10,7 @@ const multer = require("multer");
    DATABASE
 =========================== */
 const {
+  db,
   createUser,
   findUserByEmail,
   getTeamMembers,
@@ -186,6 +187,25 @@ app.post("/api/team/invite", requireAuth, (req, res) => {
     req.session.user.company
   )}`;
   res.json({ link });
+});
+
+app.get("/api/reports", requireAuth, (req, res) => {
+  const userId = req.session.user.id;
+
+  db.all(
+    `SELECT id, state, reviewed_at, finalized_at, updated_at
+     FROM metrics
+     WHERE user_id = ?
+     ORDER BY datetime(updated_at) DESC`,
+    [userId],
+    (err, rows) => {
+      if (err) {
+        console.error("Failed to list reports:", err);
+        return res.status(500).json({ error: "Failed to list reports" });
+      }
+      return res.json({ reports: rows || [] });
+    }
+  );
 });
 
 /* ===========================
