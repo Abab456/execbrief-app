@@ -83,6 +83,25 @@ app.get("/upload", (req, res) => {
   return res.redirect("/login");
 });
 
+app.post("/upload", requireAuth, upload.single("file"), (req, res) => {
+  const filename = req.file?.originalname || "unknown";
+  const placeholder = `Draft report created from uploaded file: ${filename}`;
+  const userId = req.session.user.id;
+
+  db.run(
+    `INSERT INTO metrics (user_id, data_json, state) VALUES (?, ?, ?)`,
+    [userId, placeholder, "draft"],
+    function (err) {
+      if (err) {
+        console.error("❌ Upload error:", err);
+        return res.status(500).send("Upload failed");
+      }
+
+      return res.redirect(`/report/${this.lastID}`);
+    }
+  );
+});
+
 // Redirect legacy .html
 ["login", "signup", "forgot", "dashboard", "upload"].forEach(route => {
   app.get(`/${route}.html`, (req, res) => res.redirect(`/${route}`));
