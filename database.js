@@ -65,6 +65,51 @@ function migrateMetricsColumns() {
       }
     };
 
+    const ensureIdColumn = () => {
+      if (existing.includes("id")) return;
+
+      db.run(`ALTER TABLE metrics ADD COLUMN id INTEGER`, err => {
+        if (err) {
+          console.error("❌ Failed adding column id", err);
+          return;
+        }
+
+        console.log("➕ Added column: id");
+
+        db.run(
+          `UPDATE metrics SET id = rowid WHERE id IS NULL`,
+          updateErr => {
+            if (updateErr) {
+              console.error("❌ Failed backfilling id column", updateErr);
+            } else {
+              console.log("✅ Backfilled id column from rowid");
+            }
+          }
+        );
+
+        db.run(
+          `
+          CREATE TRIGGER IF NOT EXISTS metrics_set_id_after_insert
+          AFTER INSERT ON metrics
+          WHEN NEW.id IS NULL
+          BEGIN
+            UPDATE metrics SET id = NEW.rowid WHERE rowid = NEW.rowid;
+          END;
+          `,
+          triggerErr => {
+            if (triggerErr) {
+              console.error("❌ Failed creating metrics id trigger", triggerErr);
+            } else {
+              console.log("✅ Ensured id auto-populates on insert");
+            }
+          }
+        );
+      });
+    };
+
+    ensureIdColumn();
+    addColumn("user_id", `ALTER TABLE metrics ADD COLUMN user_id INTEGER`);
+    addColumn("data_json", `ALTER TABLE metrics ADD COLUMN data_json TEXT`);
     addColumn(
       "state",
       `ALTER TABLE metrics ADD COLUMN state TEXT DEFAULT 'draft'`
@@ -80,6 +125,10 @@ function migrateMetricsColumns() {
     addColumn(
       "finalized_at",
       `ALTER TABLE metrics ADD COLUMN finalized_at DATETIME`
+    );
+    addColumn(
+      "updated_at",
+      `ALTER TABLE metrics ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP`
     );
     addColumn(
       "created_at",
