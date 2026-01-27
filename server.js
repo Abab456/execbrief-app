@@ -301,20 +301,33 @@ app.post("/report/:id/regenerate", requireAuth, (req, res) => {
 /* =========================
    UPLOAD
 ========================= */
-app.post("/api/upload", requireAuth, upload.array("files", 10), (req, res) => {
-  const payload = JSON.stringify({
-    filenames: req.files.map(f => f.originalname),
-    note: "Draft created via upload"
-  });
-
-  db.run(
-    `INSERT INTO metrics (user_id, data_json, state)
-     VALUES (?, ?, 'draft')`,
-    [req.session.user.id, payload],
-    function () {
-      res.json({ reportId: this.lastID });
+app.post("/api/upload", requireAuth, (req, res) => {
+  upload.array("files", 10)(req, res, err => {
+    if (err) {
+      return res.status(400).json({ error: err.message });
     }
-  );
+
+    if (!req.files?.length) {
+      return res.status(400).json({ error: "No files uploaded" });
+    }
+
+    const payload = JSON.stringify({
+      filenames: req.files.map(f => f.originalname),
+      note: "Draft created via upload"
+    });
+
+    db.run(
+      `INSERT INTO metrics (user_id, data_json, state)
+       VALUES (?, ?, 'draft')`,
+      [req.session.user.id, payload],
+      function (dbErr) {
+        if (dbErr) {
+          return res.status(500).json({ error: "Failed to create report" });
+        }
+        return res.json({ reportId: this.lastID });
+      }
+    );
+  });
 });
 
 /* =========================
