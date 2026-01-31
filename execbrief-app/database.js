@@ -25,6 +25,9 @@ const initDB = () => {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
             data_json TEXT,
+            state TEXT DEFAULT 'draft',
+            reviewed_at DATETIME,
+            finalized_at DATETIME,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`);
 
