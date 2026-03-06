@@ -3,4 +3,6 @@
 *.sqlite*
 node_modules/
 logs/
+uploads/
+test-email.js
 

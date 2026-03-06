@@ -1,11 +1,396 @@
-// Server file
+require("dotenv").config();
 
-const express = require('express');
+const express = require("express");
+const session = require("express-session");
+const bodyParser = require("body-parser");
+const path = require("path");
+const bcrypt = require("bcryptjs");
+const multer = require("multer");
+const fs = require("fs");
+
+/* ===========================
+   DATABASE
+=========================== */
+const {
+  db,
+  initDB,
+  createUser,
+  findUserByEmail,
+  getTeamMembers
+} = require("./database");
+
 const app = express();
-const database = require('./database'); // Updated the path to database
+const PORT = process.env.PORT || 3000;
 
-// Other server configurations
+/* ===========================
+   MIDDLEWARE
+=========================== */
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-app.listen(3000, () => {
-    console.log('Server is running on port 3000');
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "dev-secret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 3600000
+    }
+  })
+);
+
+app.use(express.static(path.join(__dirname, "../public")));
+
+/* ===========================
+   HELPERS
+=========================== */
+const requireAuth = (req, res, next) => {
+  if (req.session?.user) return next();
+  return res.status(401).json({ error: "Unauthorized" });
+};
+
+const sendPublic = (res, file) =>
+  res.sendFile(path.join(__dirname, "../public", file));
+
+/* ===========================
+   FILE UPLOAD (MVP – MEMORY)
+=========================== */
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 }
 });
+
+/* ===========================
+   ROUTING (CLEAN URLS)
+=========================== */
+app.get("/", (req, res) => {
+  if (req.session?.user) return res.redirect("/dashboard");
+  return sendPublic(res, "index.html");
+});
+
+["login", "signup", "forgot"].forEach(r =>
+  app.get(`/${r}`, (_, res) => sendPublic(res, `${r}.html`))
+);
+
+app.get("/dashboard", (req, res) => {
+  if (req.session?.user) return sendPublic(res, "dashboard.html");
+  return res.redirect("/login");
+});
+
+app.get("/upload", (req, res) => {
+  if (req.session?.user) return sendPublic(res, "upload.html");
+  return res.redirect("/login");
+});
+
+// Redirect legacy .html URLs
+["login", "signup", "forgot", "dashboard", "upload"].forEach(route => {
+  app.get(`/${route}.html`, (req, res) => res.redirect(`/${route}`));
+});
+
+/* ===========================
+   API — AUTH
+=========================== */
+app.post("/api/signup", async (req, res) => {
+  try {
+    const { email, password, name, company } = req.body;
+    if (!email || !password || !company) {
+      return res.status(400).json({ error: "Missing fields" });
+    }
+    await createUser(email, password, name, company);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message || "Signup failed" });
+  }
+});
+
+app.post("/api/login", async (req, res) => {
+  try {
+    const user = await findUserByEmail(req.body.email);
+    if (!user || !(await bcrypt.compare(req.body.password, user.password))) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    req.session.user = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      company: user.company_name,
+      tier: user.tier || "Free"
+    };
+
+    res.json({ success: true, redirect: "/dashboard" });
+  } catch {
+    res.status(500).json({ error: "Login failed" });
+  }
+});
+
+app.post("/api/logout", (req, res) => {
+  req.session.destroy(() => res.json({ success: true }));
+});
+
+/* ===========================
+   API — PROFILE / TEAM
+=========================== */
+app.get("/api/profile", requireAuth, async (req, res) => {
+  try {
+    const user = await findUserByEmail(req.session.user.email);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    res.json({
+      name: user.name,
+      email: user.email,
+      company: user.company_name,
+      tier: user.tier || "Free"
+    });
+  } catch (err) {
+    console.error("Profile error:", err);
+    res.status(500).json({ error: "Profile load failed" });
+  }
+});
+
+app.post("/api/profile/update", requireAuth, (req, res) => {
+  const { name, company } = req.body;
+  db.run(
+    `UPDATE users SET name = ?, company_name = ? WHERE id = ?`,
+    [name, company, req.session.user.id],
+    err => {
+      if (err) return res.status(500).json({ error: "Update failed" });
+      req.session.user.name = name;
+      req.session.user.company = company;
+      req.session.save();
+      res.json({ success: true });
+    }
+  );
+});
+
+app.get("/api/team", requireAuth, async (req, res) => {
+  const members = await getTeamMembers(req.session.user.company);
+  res.json({ members });
+});
+
+app.post("/api/team/invite", requireAuth, (req, res) => {
+  const link = `https://${req.headers.host}/signup?invite=${encodeURIComponent(
+    req.session.user.company
+  )}`;
+  res.json({ link });
+});
+
+/* ===========================
+   API — REPORTS
+=========================== */
+app.get("/api/reports", requireAuth, (req, res) => {
+  db.all(
+    `
+    SELECT id, state, updated_at, reviewed_at, finalized_at
+    FROM metrics
+    WHERE user_id = ?
+    ORDER BY datetime(updated_at) DESC
+    `,
+    [req.session.user.id],
+    (err, rows) => {
+      if (err) {
+        console.error("Failed to list reports:", err);
+        return res.status(500).json({ error: "Failed to list reports" });
+      }
+      return res.json({ reports: rows || [] });
+    }
+  );
+});
+
+/* ===========================
+   REPORT VIEW (HTML)
+=========================== */
+app.get("/report/:id", requireAuth, (req, res) => {
+  db.get(
+    `SELECT * FROM metrics WHERE id = ? AND user_id = ?`,
+    [req.params.id, req.session.user.id],
+    (err, report) => {
+      if (err || !report) return res.status(404).send("Report not found");
+
+      let parsed = {};
+      try { parsed = JSON.parse(report.data_json || "{}"); } catch {}
+
+      const files = Array.isArray(parsed.filenames)
+        ? `<ul>${parsed.filenames.map(f => `<li>${f}</li>`).join("")}</ul>`
+        : "";
+
+      const sourcesSection = files
+        ? `<section class="dashboard-section">
+             <div class="dashboard-card">
+               <h3>Sources</h3>${files}
+             </div>
+           </section>`
+        : "";
+
+      const lineageSection = report.parent_report_id
+        ? `<section class="dashboard-section">
+             <div class="dashboard-card">
+               Regenerated from
+               <a href="/report/${report.parent_report_id}">
+                 Report #${report.parent_report_id}
+               </a>
+             </div>
+           </section>`
+        : "";
+
+      let html = fs.readFileSync(
+        path.join(__dirname, "../public", "report.html"),
+        "utf8"
+      );
+
+      html = html
+        .replace(/{{STATE}}/g, report.state.toUpperCase())
+        .replace(
+          "{{TRUST_MESSAGE}}",
+          "This report is based on uploaded source data."
+        )
+        .replace("{{REPORT_ID}}", report.id)
+        .replace(
+          "{{REPORT_CONTENT}}",
+          files || parsed.note || "No content available."
+        )
+        .replace(
+          "{{LOCK_NOTICE}}",
+          report.state !== "draft"
+            ? `<div class="lock-notice">This report is locked.</div>`
+            : ""
+        )
+        .replace(
+          "{{SAVE_FORM}}",
+          report.state === "draft"
+            ? `<form method="POST" action="/report/${report.id}/update">
+                 <button type="submit">Save</button>
+               </form>`
+            : ""
+        )
+        .replace(
+          "{{REVIEW_BUTTON}}",
+          report.state === "draft"
+            ? `<form method="POST" action="/report/${report.id}/review">
+                 <button>Mark Reviewed</button>
+               </form>`
+            : ""
+        )
+        .replace(
+          "{{FINALIZE_BUTTON}}",
+          report.state === "reviewed"
+            ? `<form method="POST" action="/report/${report.id}/finalize">
+                 <button>Finalize</button>
+               </form>`
+            : ""
+        )
+        .replace(
+          "{{REGENERATE_BUTTON}}",
+          report.state !== "draft"
+            ? `<form method="POST" action="/report/${report.id}/regenerate">
+                 <button>Regenerate</button>
+               </form>`
+            : ""
+        )
+        .replace("{{SOURCES_SECTION}}", sourcesSection)
+        .replace("{{LINEAGE_SECTION}}", lineageSection);
+
+      res.send(html);
+    }
+  );
+});
+
+/* ===========================
+   REPORT ACTIONS
+=========================== */
+app.post("/report/:id/update", requireAuth, (req, res) => {
+  db.run(
+    `
+    UPDATE metrics
+    SET data_json = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ? AND user_id = ? AND state = 'draft'
+    `,
+    [req.body.data_json, req.params.id, req.session.user.id],
+    () => res.redirect(`/report/${req.params.id}`)
+  );
+});
+
+app.post("/report/:id/review", requireAuth, (req, res) => {
+  db.run(
+    `
+    UPDATE metrics
+    SET state = 'reviewed', reviewed_at = CURRENT_TIMESTAMP
+    WHERE id = ? AND user_id = ? AND state = 'draft'
+    `,
+    [req.params.id, req.session.user.id],
+    () => res.redirect(`/report/${req.params.id}`)
+  );
+});
+
+app.post("/report/:id/finalize", requireAuth, (req, res) => {
+  db.run(
+    `
+    UPDATE metrics
+    SET state = 'final', finalized_at = CURRENT_TIMESTAMP
+    WHERE id = ? AND user_id = ? AND state = 'reviewed'
+    `,
+    [req.params.id, req.session.user.id],
+    () => res.redirect(`/report/${req.params.id}`)
+  );
+});
+
+app.post("/report/:id/regenerate", requireAuth, (req, res) => {
+  db.get(
+    `SELECT data_json FROM metrics WHERE id = ? AND user_id = ?`,
+    [req.params.id, req.session.user.id],
+    (_, report) => {
+      if (!report) return res.status(404).send("Report not found");
+      db.run(
+        `
+        INSERT INTO metrics (user_id, data_json, state, parent_report_id)
+        VALUES (?, ?, 'draft', ?)
+        `,
+        [req.session.user.id, report.data_json, req.params.id],
+        function () {
+          res.redirect(`/report/${this.lastID}`);
+        }
+      );
+    }
+  );
+});
+
+/* ===========================
+   UPLOAD
+=========================== */
+app.post("/api/upload", requireAuth, (req, res) => {
+  upload.array("files", 10)(req, res, err => {
+    if (err) {
+      return res.status(400).json({ error: err.message });
+    }
+
+    if (!req.files?.length) {
+      return res.status(400).json({ error: "No files uploaded" });
+    }
+
+    const payload = JSON.stringify({
+      filenames: req.files.map(f => f.originalname),
+      note: "Draft created via upload"
+    });
+
+    db.run(
+      `INSERT INTO metrics (user_id, data_json, state)
+       VALUES (?, ?, 'draft')`,
+      [req.session.user.id, payload],
+      function (dbErr) {
+        if (dbErr) {
+          return res.status(500).json({ error: "Failed to create report" });
+        }
+        return res.json({ reportId: this.lastID });
+      }
+    );
+  });
+});
+
+/* ===========================
+   START
+=========================== */
+initDB();
+app.listen(PORT, () =>
+  console.log(`✅ ExecBrief running on http://localhost:${PORT}`)
+);
